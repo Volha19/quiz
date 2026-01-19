@@ -49,3 +49,27 @@ class QuizAttempt(models.Model):
     
     def get_percentage(self):
         return round((self.score / self.total_questions) * 100)
+
+
+class QuizStatistics(models.Model):
+    """Tracks user performance statistics for each quiz attempt"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='quiz_statistics')
+    quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name='statistics')
+    correct_answers = models.IntegerField()  # Number of correct answers
+    total_questions = models.IntegerField()  # Total questions in the quiz
+    score = models.FloatField()  # Percentage score (0-100)
+    attempted_at = models.DateTimeField(auto_now_add=True)  # When quiz was taken
+    
+    class Meta:
+        ordering = ['-attempted_at']
+        verbose_name = 'Quiz Statistics'
+        verbose_name_plural = 'Quiz Statistics'
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.quiz.title} - {self.score}%"
+    
+    def calculate_score(self):
+        """Calculate percentage score based on correct answers"""
+        if self.total_questions > 0:
+            return round((self.correct_answers / self.total_questions) * 100, 2)
+        return 0

@@ -83,7 +83,7 @@
     }
   });
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!topics.length) return;
 
     const current = topics[currentIndex];
@@ -106,6 +106,39 @@
       finished = true;
       // Calculate score: count how many answers match correct_answer
       total = calculateScore();
+      
+      // Submit quiz results to backend
+      await submitQuizResults();
+    }
+  };
+
+  const submitQuizResults = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+
+      // Prepare answers data - map question indices to answer values
+      const answersData = {};
+      topics.forEach((topic, idx) => {
+        if (results[idx] !== undefined) {
+          answersData[idx] = results[idx];
+        }
+      });
+
+      await fetch(`http://localhost:8000/api/quizzes/${params.quizId}/submit/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          answers: answersData,
+          score: total,
+          total_questions: topics.length
+        })
+      });
+    } catch (error) {
+      console.error('Failed to submit quiz results:', error);
     }
   };
 
@@ -332,6 +365,12 @@
                     <h3>{getResultTitle()}</h3>
                     <p>{getResultMessage()}</p>
                   </div>
+                </div>
+                
+                <div class="result-footer">
+                  <button class="back-to-quizzes-btn" on:click={() => window.location.href = '/'}>
+                    Back to My Quizzes
+                  </button>
                 </div>
               </div>
             </div>

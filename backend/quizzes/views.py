@@ -6,8 +6,8 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from .models import Quiz, Question, QuestionOption, QuizAttempt
-from .serializers import QuizSerializer, QuestionSerializer
+from .models import Quiz, Question, QuestionOption, QuizAttempt, QuizStatistics
+from .serializers import QuizSerializer, QuestionSerializer, QuizStatisticsSerializer
 from .utils.pdf_extractor import PDFExtractor
 from .utils.image_extractor import ImageExtractor
 from .utils.quiz_generator import QuizGenerator
@@ -121,18 +121,31 @@ def submit_quiz(request, quiz_id):
                 if answers[str(question.id)] == question.correct_answer:
                     score += 1
         
+        total_questions = questions.count()
+        percentage = round((score / total_questions) * 100, 2) if total_questions > 0 else 0
+        
         # Save attempt
         attempt = QuizAttempt.objects.create(
             quiz=quiz,
             user=request.user if request.user.is_authenticated else None,
             score=score,
-            total_questions=questions.count(),
+            total_questions=total_questions,
             answers=answers
         )
         
+        # Save statistics if user is authenticated
+        if request.user.is_authenticated:
+            QuizStatistics.objects.create(
+                user=request.user,
+                quiz=quiz,
+                correct_answers=score,
+                total_questions=total_questions,
+                score=percentage
+            )
+        
         return JsonResponse({
             'score': score,
-            'total': questions.count(),
+            'total': total_questions,
             'percentage': attempt.get_percentage()
         })
     
@@ -155,6 +168,51 @@ class QuizDetailView(generics.RetrieveAPIView):
     serializer_class = QuizSerializer
     permission_classes = [IsAuthenticated]
     queryset = Quiz.objects.all()
+
+
+class QuizSubmitView(APIView):
+    """API endpoint for submitting quiz results"""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, pk):
+        try:
+            quiz = get_object_or_404(Quiz, id=pk)
+            data = request.data
+            
+            score = data.get('score', 0)
+            total_questions = data.get('total_questions', 0)
+            answers = data.get('answers', {})
+            
+            # Calculate percentage
+            percentage = round((score / total_questions) * 100, 2) if total_questions > 0 else 0
+            
+            # Save to QuizAttempt
+            QuizAttempt.objects.create(
+                quiz=quiz,
+                user=request.user,
+                score=score,
+                total_questions=total_questions,
+                answers=answers
+            )
+            
+            # Save to QuizStatistics
+            QuizStatistics.objects.create(
+                user=request.user,
+                quiz=quiz,
+                correct_answers=score,
+                total_questions=total_questions,
+                score=percentage
+            )
+            
+            return Response({
+                'status': 'success',
+                'score': score,
+                'total': total_questions,
+                'percentage': percentage
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class QuestionCreateView(generics.CreateAPIView):
@@ -301,3 +359,24 @@ class FileUploadView(APIView):
             print(f"DEBUG: Exception occurred: {error_msg}")
             traceback.print_exc()  # Log to console for debugging
             return Response({'error': f'Server error: {error_msg}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class QuizAttemptsListView(generics.ListAPIView):
+    """API endpoint to retrieve user's quiz attempts"""
+    serializer_class = None  # We'll return custom response
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        attempts = QuizAttempt.objects.filter(user=request.user).values(
+            'id', 'score', 'total_questions', 'completed_at'
+        ).order_by('-completed_at')
+        
+        return Response(list(attempts), status=status.HTTP_200_OK)
+
+
+class QuizStatisticsListView(generics.ListAPIView):
+    """API endpoint to retrieve user's quiz statistics"""
+    serializer_class = QuizStatisticsSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        return QuizStatistics.objects.filter(user=self.request.user).order_by('-attempted_at')

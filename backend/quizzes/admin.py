@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Quiz, Question, QuestionOption, QuizAttempt
+from .models import Quiz, Question, QuestionOption, QuizAttempt, QuizStatistics
 
 class QuestionOptionInline(admin.TabularInline):
     model = QuestionOption
@@ -39,3 +39,10 @@ class QuizAttemptAdmin(admin.ModelAdmin):
     list_filter = ['completed_at', 'user', 'quiz']
     search_fields = ['quiz__title', 'user__username']
     readonly_fields = ['completed_at']
+
+@admin.register(QuizStatistics)
+class QuizStatisticsAdmin(admin.ModelAdmin):
+    list_display = ['quiz', 'user', 'correct_answers', 'total_questions', 'score', 'attempted_at']
+    list_filter = ['attempted_at', 'user', 'quiz']
+    search_fields = ['quiz__title', 'user__username']
+    readonly_fields = ['attempted_at']

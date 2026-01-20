@@ -16,11 +16,11 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from quizzes.views import landing_page
+from django.shortcuts import redirect
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', landing_page, name='landing'),  # Landing page at root
+    path('', lambda request: redirect('/admin/')),  # Redirect root to admin panel
     path('api/auth/', include('accounts.urls')),
     path('api/', include('quizzes.urls')),
 ]

@@ -14,4 +14,6 @@ urlpatterns = [
     path('attempts/', views.QuizAttemptsListView.as_view(), name='attempts-list'),
     # Statistics endpoint
     path('statistics/', views.QuizStatisticsListView.as_view(), name='statistics-list'),
+    # Calendar data endpoint
+    path('calendar/', views.QuizCalendarDataView.as_view(), name='calendar-data'),
 ]

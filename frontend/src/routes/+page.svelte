@@ -1,6 +1,7 @@
 <script>
   import './home.css';
   import { onMount } from 'svelte';
+  import QuizCalendar from '$lib/QuizCalendar.svelte';
 
   let loggedIn = false;
   let checking = true;
@@ -409,6 +410,9 @@
             {/if}
           </div>
         {/if}
+
+        <!-- Quiz Activity Calendar -->
+        <QuizCalendar />
       </section>
 
       <!-- User Quizzes Section -->

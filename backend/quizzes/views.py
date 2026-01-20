@@ -2,6 +2,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.files.storage import default_storage
+from django.db.models import Count
+from django.db.models.functions import TruncDate
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -380,3 +382,26 @@ class QuizStatisticsListView(generics.ListAPIView):
     
     def get_queryset(self):
         return QuizStatistics.objects.filter(user=self.request.user).order_by('-attempted_at')
+
+
+class QuizCalendarDataView(APIView):
+    """API endpoint to retrieve quiz attempts grouped by date"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        # Get all quiz statistics for the user
+        statistics = QuizStatistics.objects.filter(user=request.user)
+        
+        # Group by date and count attempts
+        daily_counts = statistics.annotate(
+            date=TruncDate('attempted_at')
+        ).values('date').annotate(
+            count=Count('id')
+        ).order_by('date')
+        
+        # Format the response
+        calendar_data = {
+            str(item['date']): item['count'] for item in daily_counts
+        }
+        
+        return Response(calendar_data, status=status.HTTP_200_OK)
